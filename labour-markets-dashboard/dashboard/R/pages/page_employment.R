@@ -1,43 +1,70 @@
 
 # R/pages/page_employment.R
+#
+# Employment page - evolved from original simple pattern to enhanced visualization
+# Uses shared helpers from labour_market_helpers.R for consistency and reusability
 
-
-# ---- Employment page ----
+# Source shared helpers (AGE_CHOICES, AGE_STACK, labour_metric_ui/server, etc.)
+source("R/pages/labour_market_helpers.R")
 
 library(ggplot2)
 library(scales)
 library(plotly)
 
 
+# -----------------------------------------------------------------------------
+# Dataset Code Mappings (from original employment script)
+# -----------------------------------------------------------------------------
+# These map age groups to their ONS dataset identifier codes for querying
+
+#' Employment age group codes for levels and rates
+#' @description Maps each age group to its ONS dataset codes
+employment_age_codes <- data.frame(
+  age_group = AGE_CHOICES,
+  level_code = c("MGRZ", "LF2G", "YBTO", "YBTR", "YBTU", "YBTX", "LF26", "LFK4"),
+  rate_code  = c("MGSR", "LF24", "YBUA", "YBUD", "YBUG", "YBUJ", "LF2U", "LFK6"),
+  stringsAsFactors = FALSE
+)
+
+#' Employment codes for stacked charts (excludes totals)
+stacked_employment_codes <- data.frame(
+  age_group = AGE_STACK,
+  code = c("YBTO", "YBTR", "YBTU", "YBTX", "LF26", "LFK4"),
+  stringsAsFactors = FALSE
+)
+
+
+# -----------------------------------------------------------------------------
+# Employment Page UI
+# -----------------------------------------------------------------------------
+
+#' Employment Page UI
+#'
+#' Creates the full Employment page with multiple sections:
+#' Overview, Employment by Age, Employment by Gender, Employment by Sector.
+#'
+#' @param id Character. The module namespace ID.
+#' @return A Shiny tagList containing the complete page UI.
+#' @export
 employment_ui <- function(id) {
   ns <- NS(id)
 
-  # Sidebar TOC items (labels -> target section IDs)
-  # Adjust labels if you want different wording in the left nav.
-  toc_items <- list(
-    "Overview"             = "employment-overview",
-    "Employment by Age"    = "employment-age",
-    "Employment by Gender" = "employment-gender",
-    "Employment by Sector" = "employment-sector"
-  )
-
+  # Sidebar TOC sections
   toc_sections <- list(
     list(
       heading = "Live Full Sample",
-      items = c("Overview"             = "employment-overview",
-                "Employment by Age"    = "employment-age")
+      items = c("Overview"           = "employment-overview",
+                "Employment by Age"  = "employment-age")
     ),
     list(
       heading = "Full Sample Microdata",
       items = c("Employment by Gender" = "employment-gender",
                 "Employment by Sector" = "employment-sector")
     )
-    )
-
+  )
 
   tagList(
-
-    # Sidebar nav in left gutter (fixed via CSS) , show_title_visually = TRUE, nav_id = "section-menu"
+    # Sidebar nav in left gutter
     side_nav(ns, sections = toc_sections, title = "On this page"),
 
     div(class = "govuk-width-container",
@@ -46,14 +73,12 @@ employment_ui <- function(id) {
                   tags$h1(class = "govuk-heading-xl", "Employment"),
                   tags$p(class = "govuk-body-s", paste("Last updated:", Sys.Date())),
 
-                  # --- Grid: left TOC + right content ---
+                  # --- Grid: content area ---
                   div(class = "govuk-grid-row",
-
                   div(class = "govuk-grid-column-full",
 
-                          # ===== Overview =====
+                          # ===== Overview Section =====
                           tags$section(id = "employment-overview",
-                                       # Keep your existing components inside this section
                                        div(class = "govuk-grid-row",
                                            uiOutput(ns("card_unemploy")),
                                            uiOutput(ns("card_duration")),
@@ -90,17 +115,17 @@ employment_ui <- function(id) {
                                        verbatimTextOutput(ns("picked_table")),
                                        textOutput(ns("lfs_list")),
 
-                                       #Visualize the Plotly Output
-                                        mod_govuk_data_vis_card_ui(
-                                          id = ns("trend_card"),
-                                          title = "Employment trend",
-                                          help_text = "This card hosts the visual only. Global and visual-specific filters live elsewhere.",
-                                          visual_content = plotlyOutput(ns("trend"), height = "350px"),
-                                        )
-
+                                       # Trend visualization card
+                                       mod_govuk_data_vis_card_ui(
+                                         id = ns("trend_card"),
+                                         title = "Employment trend",
+                                         help_text = "This card hosts the visual only. Global and visual-specific filters live elsewhere.",
+                                         visual_content = plotlyOutput(ns("trend"), height = "350px")
+                                       )
                           ),
 
-                          # ===== Employment by Age =====
+                          # ===== Employment by Age Section =====
+                          # Uses shared labour_metric_ui from helpers (evolved pattern)
                           tags$section(id = "employment-age",
                                        tags$h1(class = "govuk-heading-xl", "Employment by Age"),
 
@@ -130,293 +155,62 @@ employment_ui <- function(id) {
                                            )
                                        ),
 
-                                       # Time period range slider for age data
+                                       # Time period range slider (dynamic)
                                        uiOutput(ns("age_time_slider")),
 
-                                       # Employment by Age visualization card with multiple tabs
-                                       mod_employment_age_card_ui(
+                                       # Employment by Age card using shared helper
+                                       # This is the evolved pattern from the original:
+                                       #   labour_metric_ui(id, "Employment", "#1d70b8", "#00703c")
+                                       labour_metric_ui(
                                          id = ns("age_card"),
-                                         title = "Employment by Age Group",
-                                         help_text = "View employment data broken down by age group. Use tabs to switch between chart types."
+                                         metric_name = "Employment",
+                                         primary_colour = "#1d70b8",
+                                         secondary_colour = "#00703c"
                                        )
                           ),
 
-                          # ===== Employment by Gender =====
+                          # ===== Employment by Gender Section =====
                           tags$section(id = "employment-gender",
                                        tags$h1(class = "govuk-heading-xl", "Employment by Gender"),
-                                       textAreaInput(ns("notes_gender"), label = NULL, value = "", placeholder = strrep("This is a very long placeholder. ", 200))
+                                       textAreaInput(ns("notes_gender"), label = NULL, value = "",
+                                         placeholder = strrep("This is a very long placeholder. ", 200))
                           ),
 
-                          # ===== Employment by Sector =====
+                          # ===== Employment by Sector Section =====
                           tags$section(id = "employment-sector",
                                        tags$h1(class = "govuk-heading-xl", "Employment by Sector"),
-                                       textAreaInput(ns("notes_sector"), label = NULL, value = "", placeholder = strrep("This is a very long placeholder. ", 200))
+                                       textAreaInput(ns("notes_sector"), label = NULL, value = "",
+                                         placeholder = strrep("This is a very long placeholder. ", 200))
                           )
                       )
                   )
         )
     )
   )
-  }
-    
+}
 
 
+# -----------------------------------------------------------------------------
+# Employment Page Server
+# -----------------------------------------------------------------------------
 
-# -------------------------------------------------------------------------
-# Employment by Age Card Module (UI + Server)
-# Provides: Stacked Area, Stacked Bar, Line Graph (Total), Table, Download
-# -------------------------------------------------------------------------
-
-#' Employment by Age Card Module UI
+#' Employment Page Server
 #'
-#' Creates a self-contained card for displaying employment data by age group.
-#' Includes chart type toggle (stacked area, stacked bar, line), tabular data,
-#' and download options. This module encapsulates all age-related visualization.
+#' Server logic for the Employment page. Handles data fetching, filtering,
+#' and wiring up the various visualization modules.
 #'
 #' @param id Character. The module namespace ID.
-#' @param title Character. Card title displayed as a heading.
-#' @param help_text Character. Optional hint text displayed below the title.
-#'
-#' @return A Shiny tagList containing the styled card with chart toggle and tabs.
 #' @export
-#'
-#' @examples
-#' # In UI definition
-#' mod_employment_age_card_ui(
-#'   id = ns("age_card"),
-#'   title = "Employment by Age Group",
-#'   help_text = "View employment data broken down by age group."
-#' )
-mod_employment_age_card_ui <- function(id, title, help_text = NULL) {
-  ns <- shiny::NS(id)
-
-  htmltools::tagList(
-    ukhsa_card_tabs_assets(),
-
-    htmltools::tags$div(class = "lm-card-ukhsa",
-      htmltools::tags$h2(class = "govuk-heading-m", title),
-      if (!is.null(help_text)) htmltools::tags$p(class = "govuk-hint", help_text),
-
-      # Chart type toggle (radio buttons for switching view)
-      htmltools::tags$div(class = "govuk-form-group", style = "margin-bottom: 12px;",
-        shiny::radioButtons(
-          inputId = ns("chart_type"),
-          label = "Chart Type",
-          choices = c(
-            "Stacked Area" = "area",
-            "Stacked Bar" = "bar",
-            "Line (Total)" = "line"
-          ),
-          selected = "area",
-          inline = TRUE
-        )
-      ),
-
-      # Tabs container
-      htmltools::tags$div(class = "ukhsa-tabs",
-        # Tab buttons
-        htmltools::tags$div(class = "ukhsa-tabs__list", role = "tablist",
-          htmltools::tags$a(
-            class = "ukhsa-tabs__tab",
-            role = "tab", `aria-selected` = "true", tabindex = "0",
-            `data-target` = ns("chart"), "Chart"
-          ),
-          htmltools::tags$a(
-            class = "ukhsa-tabs__tab",
-            role = "tab", `aria-selected` = "false", tabindex = "-1",
-            `data-target` = ns("table"), "Tabular data"
-          ),
-          htmltools::tags$a(
-            class = "ukhsa-tabs__tab",
-            role = "tab", `aria-selected` = "false", tabindex = "-1",
-            `data-target` = ns("download"), "Download"
-          )
-        ),
-
-        # Panels
-        htmltools::tags$div(
-          id = ns("chart"), class = "ukhsa-tabs__panel", role = "tabpanel",
-          plotly::plotlyOutput(ns("age_chart"), height = "400px")
-        ),
-        htmltools::tags$div(
-          id = ns("table"), class = "ukhsa-tabs__panel is-hidden", role = "tabpanel",
-          DT::dataTableOutput(ns("age_table"))
-        ),
-        htmltools::tags$div(
-          id = ns("download"), class = "ukhsa-tabs__panel is-hidden", role = "tabpanel",
-          htmltools::tags$p(class = "govuk-body", "Download the data in various formats:
-"),
-          shiny::downloadButton(ns("download_csv"), "Download CSV", class = "govuk-button govuk-button--secondary"),
-          shiny::downloadButton(ns("download_xlsx"), "Download Excel", class = "govuk-button govuk-button--secondary")
-        )
-      )
-    )
-  )
-}
-
-
-#' Employment by Age Card Module Server
-#'
-#' Server logic for the Employment by Age card. Renders interactive charts
-#' (stacked area, stacked bar, or line graph), a data table, and download
-#' handlers for CSV/Excel export.
-#'
-#' @param id Character. The module namespace ID (must match the UI).
-#' @param age_data Reactive. A reactive expression returning a data frame with
-#'   columns: age_group, economic_activity, time_period, value.
-#' @param chart_type Reactive. Optional reactive expression returning the chart
-#'   type ("area", "bar", or "line"). If NULL, uses the module's internal radio buttons.
-#'
-#' @return NULL (called for side effects - renders chart, table, and downloads).
-#' @export
-#'
-#' @examples
-#' # In server definition
-#' mod_employment_age_card_server(
-#'   id = "age_card",
-#'   age_data = reactive({ filtered_employment_data }),
-#'   chart_type = reactive({ input$chart_type })
-#' )
-mod_employment_age_card_server <- function(id, age_data, chart_type) {
-  shiny::moduleServer(id, function(input, output, session) {
-
-    # Merge chart_type from parent or use local
-    selected_chart_type <- shiny::reactive({
-      if (!is.null(chart_type) && shiny::is.reactive(chart_type)) {
-        chart_type()
-      } else {
-        input$chart_type %||% "area"
-      }
-    })
-
-    # Render the appropriate chart based on selection
-
-    output$age_chart <- plotly::renderPlotly({
-      d <- age_data()
-      shiny::req(nrow(d) > 0)
-
-      chart_choice <- selected_chart_type()
-
-      # Parse time periods for proper ordering
-      d$parsed_date <- sapply(d$time_period, parse_time_period)
-      d$parsed_date <- as.Date(d$parsed_date, origin = "1970-01-01
-")
-      d <- d[order(d$parsed_date, d$age_group), ]
-
-      # Color palette for age groups
-      age_colors <- c(
-        "Age 16-17" = "#12436D",
-        "Age 18-24" = "#28A197",
-        "Age 25-34" = "#801650",
-        "Age 35-49" = "#F46A25",
-        "Age 50-64" = "#3D3D3D",
-        "Age 65+"   = "#A285D1"
-      )
-
-      if (chart_choice == "area") {
-        # Stacked Area Chart
-        p <- ggplot2::ggplot(d, ggplot2::aes(x = parsed_date, y = value, fill = age_group)) +
-          ggplot2::geom_area(alpha = 0.8, position = "stack") +
-          ggplot2::scale_fill_manual(values = age_colors, na.value = "#888888") +
-          ggplot2::theme_minimal() +
-          ggplot2::labs(x = NULL, y = "Value (000s)", fill = "Age Group") +
-          ggplot2::theme(legend.position = "bottom")
-
-      } else if (chart_choice == "bar") {
-        # Stacked Bar Chart (per period)
-        p <- ggplot2::ggplot(d, ggplot2::aes(x = time_period, y = value, fill = age_group)) +
-          ggplot2::geom_bar(stat = "identity", position = "stack") +
-          ggplot2::scale_fill_manual(values = age_colors, na.value = "#888888") +
-          ggplot2::theme_minimal() +
-          ggplot2::labs(x = "Time Period", y = "Value (000s)", fill = "Age Group") +
-          ggplot2::theme(
-            axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, size = 8),
-            legend.position = "bottom"
-          )
-
-      } else if (chart_choice == "line") {
-        # Line Graph - Total only
-        d_total <- d %>%
-          dplyr::group_by(time_period, parsed_date) %>%
-          dplyr::summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop") %>%
-          dplyr::arrange(parsed_date)
-
-        p <- ggplot2::ggplot(d_total, ggplot2::aes(x = parsed_date, y = total_value)) +
-          ggplot2::geom_line(color = "#cf102d", size = 1.2) +
-          ggplot2::geom_point(color = "#cf102d", size = 2) +
-          ggplot2::theme_minimal() +
-          ggplot2::labs(x = NULL, y = "Total Value (000s)")
-      }
-
-      plotly::ggplotly(p) %>%
-        plotly::layout(legend = list(orientation = "h", y = -0.2))
-    })
-
-    # Render data table
-    output$age_table <- DT::renderDataTable({
-      d <- age_data()
-      shiny::req(nrow(d) > 0)
-
-      DT::datatable(
-        d[, c("age_group", "economic_activity", "time_period", "value")],
-        options = list(
-          pageLength = 15,
-          scrollX = TRUE,
-          dom = "frtip"
-        ),
-        rownames = FALSE,
-        colnames = c("Age Group", "Economic Activity", "Time Period", "Value")
-      )
-    })
-
-    # Download handlers
-    output$download_csv <- shiny::downloadHandler(
-      filename = function() {
-        paste0("employment_by_age_", Sys.Date(), ".csv")
-      },
-      content = function(file) {
-        write.csv(age_data(), file, row.names = FALSE)
-      }
-    )
-
-    output$download_xlsx <- shiny::downloadHandler(
-      filename = function() {
-        paste0("employment_by_age_", Sys.Date(), ".xlsx")
-      },
-      content = function(file) {
-        # Use writexl if available, otherwise fall back to CSV
-        if (requireNamespace("writexl", quietly = TRUE)) {
-          writexl::write_xlsx(age_data(), file)
-        } else {
-          write.csv(age_data(), file, row.names = FALSE)
-        }
-      }
-    )
-
-    # Initialize tabs
-    session$onFlushed(function() {
-      session$sendCustomMessage("ukhsa-tabs-init", list())
-    }, once = FALSE)
-  })
-}
-
-
-# -------------------------------------------------------------------------
-# Main Employment Server
-# -------------------------------------------------------------------------
-
 employment_server <- function(id) {
   moduleServer(id, function(input, output, session) {
 
-
-    # somewhere in your employment route server
+    # Initialize trend card
     mod_govuk_data_vis_card_server("trend_card")
 
-
+    # Data for overview section (economics sample data)
     dat <- reactive({
       economics[economics$date >= input$range[1] & economics$date <= input$range[2], ]
     })
-
 
     output$selection <- renderText({
       paste("Selected range:",
@@ -430,21 +224,19 @@ employment_server <- function(id) {
 
     output$lfs_list <- renderText({
       paste("Selected LFS tables: ",
-            paste(lfs_selected_tables(), collapse = ", ")
-            )
+            paste(lfs_selected_tables(), collapse = ", "))
     })
 
     observeEvent(lfs_selected_tables(), {
       choices <- lfs_selected_tables()
       req(length(choices) > 0)
 
-      # keep current selection if still present, else pick first
       current <- isolate(input$table_select)
       selected <- if (!is.null(current) && current %in% choices) current else choices[1]
 
       updateSelectizeInput(
         session  = session,
-        inputId  = "table_select",   # <- no ns() here; already in module session
+        inputId  = "table_select",
         choices  = choices,
         selected = selected,
         server   = TRUE
@@ -456,9 +248,8 @@ employment_server <- function(id) {
     })
 
 
+    # --- Overview Stats Cards ---
 
-
-    # Card 1: Total Unemployed (increase is bad -> red tag; blue accent hex)
     output$card_unemploy <- renderUI({
       d <- dat(); req(nrow(d) >= 2)
       curr <- tail(d$unemploy, 1); prev <- tail(d$unemploy, 2)[1]
@@ -470,11 +261,10 @@ employment_server <- function(id) {
         headline = govuk_format_number(curr),
         delta    = govuk_format_number(delta),
         period   = "vs last month",
-        good_if_increase = FALSE       # increase is bad => red tag
+        good_if_increase = FALSE
       )
     })
 
-    # Card 2: Duration (Weeks) (increase is bad; red accent hex)
     output$card_duration <- renderUI({
       d <- dat(); req(nrow(d) >= 2)
       curr <- tail(d$uempmed, 1); prev <- tail(d$uempmed, 2)[1]
@@ -490,7 +280,6 @@ employment_server <- function(id) {
       )
     })
 
-    # Card 3: Population (increase is good; green accent hex)
     output$card_pop <- renderUI({
       d <- dat(); req(nrow(d) >= 2)
       curr <- tail(d$pop, 1); prev <- tail(d$pop, 2)[1]
@@ -506,7 +295,7 @@ employment_server <- function(id) {
       )
     })
 
-    # Plot (unchanged)
+    # Trend plot
     output$trend <- renderPlotly({
       ggplotly(
         ggplot(dat(), aes(date, unemploy)) +
@@ -520,9 +309,10 @@ employment_server <- function(id) {
 
     # =========================================================================
     # Employment by Age Section
+    # Uses the evolved labour_metric_server pattern from helpers
     # =========================================================================
 
-    # Fetch all age data once
+    # Fetch all age data
     all_age_data <- reactive({
       tryCatch({
         get_labour_market_age_data(
@@ -601,7 +391,6 @@ employment_server <- function(id) {
       if (!is.null(input$age_time_range) && length(input$age_time_range) == 2) {
         all_periods <- age_time_periods()
 
-        # Parse and sort all periods
         period_df <- data.frame(
           period = all_periods,
           date = sapply(all_periods, parse_time_period),
@@ -610,7 +399,6 @@ employment_server <- function(id) {
         period_df$date <- as.Date(period_df$date, origin = "1970-01-01")
         period_df <- period_df[order(period_df$date), ]
 
-        # Find index range
         start_period <- input$age_time_range[1]
         end_period <- input$age_time_range[2]
         start_idx <- which(period_df$period == start_period)
@@ -625,18 +413,18 @@ employment_server <- function(id) {
       d
     })
 
-    # Get the chart type selection from the child module's input
-    age_chart_type <- reactive({
-      # Access the child module's input via namespaced ID
-      ns_id <- session$ns("age_card-chart_type")
-      input[[ns_id]] %||% "area"
-    })
-
-    # Call the Employment by Age card server
-    mod_employment_age_card_server(
+    # Call the shared labour_metric_server (evolved from original pattern)
+    # Original was: labour_metric_server(id, "Employment", employment_age_codes,
+    #                                    stacked_employment_codes, "#1d70b8", "#00703c", invert = FALSE)
+    labour_metric_server(
       id = "age_card",
-      age_data = filtered_age_data,
-      chart_type = reactive({ input[["age_card-chart_type"]] %||% "area" })
+      metric_name = "Employment",
+      age_codes = employment_age_codes,
+      stacked_codes = stacked_employment_codes,
+      primary_colour = "#1d70b8",
+      secondary_colour = "#00703c",
+      invert = FALSE,
+      data = filtered_age_data
     )
 
   })
