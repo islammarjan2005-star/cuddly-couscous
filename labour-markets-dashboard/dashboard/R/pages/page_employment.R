@@ -26,7 +26,7 @@ employment_age_codes <- data.frame(
   stringsAsFactors = FALSE
 )
 
-#' Employment codes for stacked charts (excludes totals)
+#' Employment codes for stacked charts (matches AGE_STACK)
 stacked_employment_codes <- data.frame(
   age_group = AGE_STACK,
   code = c("YBTO", "YBTR", "YBTU", "YBTX", "LF26", "LFK4"),
@@ -128,35 +128,6 @@ employment_ui <- function(id) {
                           # Uses shared labour_metric_ui from helpers (evolved pattern)
                           tags$section(id = "employment-age",
                                        tags$h1(class = "govuk-heading-xl", "Employment by Age"),
-
-                                       # Age group filter
-                                       div(class = "govuk-grid-row",
-                                           div(class = "govuk-grid-column-one-half",
-                                               selectizeInput(
-                                                 inputId = ns("age_group_filter"),
-                                                 label = "Filter by Age Group",
-                                                 choices = NULL,
-                                                 multiple = TRUE,
-                                                 options = list(
-                                                   placeholder = "Select age groups (leave empty for all)...",
-                                                   plugins = list("remove_button")
-                                                 ),
-                                                 width = "100%"
-                                               )
-                                           ),
-                                           div(class = "govuk-grid-column-one-half",
-                                               selectInput(
-                                                 inputId = ns("age_economic_activity"),
-                                                 label = "Economic Activity",
-                                                 choices = c("Employment", "Unemployment"),
-                                                 selected = "Employment",
-                                                 width = "100%"
-                                               )
-                                           )
-                                       ),
-
-                                       # Time period range slider (dynamic)
-                                       uiOutput(ns("age_time_slider")),
 
                                        # Employment by Age card using shared helper
                                        # This is the evolved pattern from the original:
@@ -310,108 +281,8 @@ employment_server <- function(id) {
     # =========================================================================
     # Employment by Age Section
     # Uses the evolved labour_metric_server pattern from helpers
+    # Server now handles data fetching internally using dataset codes
     # =========================================================================
-
-    # Fetch all age data
-    all_age_data <- reactive({
-      tryCatch({
-        get_labour_market_age_data(
-          conn = APP_DB$pool,
-          economic_activity = input$age_economic_activity,
-          value_type = "level"
-        )
-      }, error = function(e) {
-        message("Error loading age data: ", e$message)
-        data.frame()
-      })
-    })
-
-    # Get unique time periods for the slider
-    age_time_periods <- reactive({
-      d <- all_age_data()
-      if (nrow(d) == 0) return(character(0))
-      unique(d$time_period)
-    })
-
-    # Populate age group filter choices
-    observe({
-      d <- all_age_data()
-      if (nrow(d) > 0) {
-        age_groups <- sort(unique(d$age_group))
-        updateSelectizeInput(
-          session = session,
-          inputId = "age_group_filter",
-          choices = age_groups,
-          selected = character(0),
-          server = TRUE
-        )
-      }
-    })
-
-    # Render time period slider dynamically
-    output$age_time_slider <- renderUI({
-      periods <- age_time_periods()
-      req(length(periods) > 0)
-
-      # Parse and sort periods chronologically
-      period_df <- data.frame(
-        period = periods,
-        date = sapply(periods, parse_time_period),
-        stringsAsFactors = FALSE
-      )
-      period_df$date <- as.Date(period_df$date, origin = "1970-01-01")
-      period_df <- period_df[order(period_df$date), ]
-      sorted_periods <- period_df$period
-
-      # Default to last 20 periods or all if fewer
-      n_periods <- length(sorted_periods)
-      start_idx <- max(1, n_periods - 19)
-
-      shinyWidgets::sliderTextInput(
-        inputId = session$ns("age_time_range"),
-        label = "Select Time Period Range",
-        choices = sorted_periods,
-        selected = c(sorted_periods[start_idx], sorted_periods[n_periods]),
-        grid = TRUE,
-        width = "100%"
-      )
-    })
-
-    # Filtered age data based on user selections
-    filtered_age_data <- reactive({
-      d <- all_age_data()
-      req(nrow(d) > 0)
-
-      # Filter by selected age groups (if any selected)
-      if (!is.null(input$age_group_filter) && length(input$age_group_filter) > 0) {
-        d <- d[d$age_group %in% input$age_group_filter, ]
-      }
-
-      # Filter by time period range (if slider exists)
-      if (!is.null(input$age_time_range) && length(input$age_time_range) == 2) {
-        all_periods <- age_time_periods()
-
-        period_df <- data.frame(
-          period = all_periods,
-          date = sapply(all_periods, parse_time_period),
-          stringsAsFactors = FALSE
-        )
-        period_df$date <- as.Date(period_df$date, origin = "1970-01-01")
-        period_df <- period_df[order(period_df$date), ]
-
-        start_period <- input$age_time_range[1]
-        end_period <- input$age_time_range[2]
-        start_idx <- which(period_df$period == start_period)
-        end_idx <- which(period_df$period == end_period)
-
-        if (length(start_idx) > 0 && length(end_idx) > 0) {
-          selected_periods <- period_df$period[start_idx:end_idx]
-          d <- d[d$time_period %in% selected_periods, ]
-        }
-      }
-
-      d
-    })
 
     # Call the shared labour_metric_server (evolved from original pattern)
     # Original was: labour_metric_server(id, "Employment", employment_age_codes,
@@ -423,8 +294,7 @@ employment_server <- function(id) {
       stacked_codes = stacked_employment_codes,
       primary_colour = "#1d70b8",
       secondary_colour = "#00703c",
-      invert = FALSE,
-      data = filtered_age_data
+      invert = FALSE
     )
 
   })
