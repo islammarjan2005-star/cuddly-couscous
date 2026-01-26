@@ -14,6 +14,14 @@
 #
 # =============================================================================
 
+# Source required dependencies (if not already loaded by app.R)
+if (!exists("ukhsa_card_tabs_assets")) {
+  source("R/components/govuk_helpers.R")
+}
+if (!exists("govuk_stats_card")) {
+  source("R/components/govuk_visuals.R")
+}
+
 
 # -----------------------------------------------------------------------------
 # Constants: Age Group Choices
