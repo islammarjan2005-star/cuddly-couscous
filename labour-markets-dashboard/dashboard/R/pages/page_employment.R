@@ -134,9 +134,9 @@ employment_ui <- function(id) {
                                        #   labour_metric_ui(id, "Employment", "#1d70b8", "#00703c")
                                        labour_metric_ui(
                                          id = ns("age_card"),
-                                         metric_name = "Employment",
-                                         primary_colour = "#1d70b8",
-                                         secondary_colour = "#00703c"
+                                         title = "Employment",
+                                         level_colour = "#1d70b8",
+                                         rate_colour = "#00703c"
                                        )
                           ),
 
@@ -289,11 +289,11 @@ employment_server <- function(id) {
     #                                    stacked_employment_codes, "#1d70b8", "#00703c", invert = FALSE)
     labour_metric_server(
       id = "age_card",
-      metric_name = "Employment",
+      title = "Employment",
       age_codes = employment_age_codes,
       stacked_codes = stacked_employment_codes,
-      primary_colour = "#1d70b8",
-      secondary_colour = "#00703c",
+      level_colour = "#1d70b8",
+      rate_colour = "#00703c",
       invert = FALSE
     )
 
