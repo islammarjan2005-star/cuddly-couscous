@@ -18,6 +18,7 @@ library(ggplot2)
 library(scales)
 library(plotly)
 library(DBI)
+library(RPostgres)
 
 # Source required dependencies (if not already loaded by app.R)
 if (!exists("ukhsa_card_tabs_assets")) {
@@ -258,8 +259,11 @@ labour_metric_server <- function(
 ) {
   shiny::moduleServer(id, function(input, output, session) {
 
-    # Get database connection from app
-    conn <- APP_DB$pool
+    # Get database connection (same pattern as viq.R)
+    conn <- if (exists("APP_DB")) APP_DB$pool else dbConnect(RPostgres::Postgres())
+    if (!exists("APP_DB")) {
+      onStop(function() dbDisconnect(conn))
+    }
 
     # Fetch stacked age data based on selected age groups
     by_age <- reactive({
