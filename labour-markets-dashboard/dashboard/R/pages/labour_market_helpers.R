@@ -101,8 +101,20 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
       tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
       tags$p(class = "govuk-body", paste("Total", tolower(title), "broken down by age group over time")),
 
-      # Age group checkboxes (from viq.R)
-      checkboxGroupInput(ns("stacked_age_select"), "Select Age Groups", AGE_STACK, AGE_STACK, inline = TRUE),
+      # Controls row: Age checkboxes + Time period slider
+      div(class = "govuk-grid-row",
+        div(class = "govuk-grid-column-one-half",
+          # Age group checkboxes (from viq.R)
+          checkboxGroupInput(ns("stacked_age_select"), "Select Age Groups", AGE_STACK, AGE_STACK, inline = TRUE)
+        ),
+        div(class = "govuk-grid-column-one-half",
+          # Time period slider (enhancement)
+          sliderInput(ns("date_range"), "Time Period",
+                      min = as.Date("1992-01-01"), max = Sys.Date(),
+                      value = c(as.Date("2010-01-01"), Sys.Date()),
+                      width = "100%", timeFormat = "%Y")
+        )
+      ),
 
       # Chart type toggle (enhancement)
       tags$div(class = "govuk-form-group", style = "margin-bottom: 12px;",
@@ -162,8 +174,8 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
     conn <- dbConnect(RPostgres::Postgres())
     onStop(function() dbDisconnect(conn))
 
-    # Fetch stacked age data (from viq.R)
-    by_age <- reactive({
+    # Fetch all stacked age data (from viq.R)
+    all_age_data <- reactive({
       req(input$stacked_age_select)
       sel <- stacked_codes[stacked_codes$age_group %in% input$stacked_age_select, ]
       codes <- paste0("'", sel$code, "'", collapse = ", ")
@@ -173,6 +185,13 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
       df$value <- as.numeric(df$value) / 1000
       df$age_group <- setNames(sel$age_group, sel$code)[df$dataset_indentifier_code]
       df[order(df$date), ]
+    })
+
+    # Filter by time period slider (enhancement)
+    by_age <- reactive({
+      d <- all_age_data()
+      req(nrow(d) > 0, input$date_range)
+      d[d$date >= input$date_range[1] & d$date <= input$date_range[2], ]
     })
 
     # Chart type selection
