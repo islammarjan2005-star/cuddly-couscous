@@ -101,23 +101,21 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
       tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
       tags$p(class = "govuk-body", paste("Total", tolower(title), "broken down by age group over time")),
 
-      # Controls row: Age checkboxes + Time period slider
-      div(class = "govuk-grid-row",
-        div(class = "govuk-grid-column-one-half",
-          # Age group checkboxes (from viq.R)
-          checkboxGroupInput(ns("stacked_age_select"), "Select Age Groups", AGE_STACK, AGE_STACK, inline = TRUE)
-        ),
-        div(class = "govuk-grid-column-one-half",
-          # Time period slider (enhancement)
-          sliderInput(ns("date_range"), "Time Period",
-                      min = as.Date("1992-01-01"), max = Sys.Date(),
-                      value = c(as.Date("2010-01-01"), Sys.Date()),
-                      width = "100%", timeFormat = "%Y")
-        )
+      # Age group checkboxes (from viq.R)
+      tags$div(class = "govuk-form-group",
+        checkboxGroupInput(ns("stacked_age_select"), "Select Age Groups", AGE_STACK, AGE_STACK, inline = TRUE)
+      ),
+
+      # Time period slider (enhancement)
+      tags$div(class = "govuk-form-group",
+        sliderInput(ns("date_range"), "Time Period",
+                    min = as.Date("1992-01-01"), max = Sys.Date(),
+                    value = c(as.Date("2010-01-01"), Sys.Date()),
+                    width = "100%", timeFormat = "%Y")
       ),
 
       # Chart type toggle (enhancement)
-      tags$div(class = "govuk-form-group", style = "margin-bottom: 12px;",
+      tags$div(class = "govuk-form-group",
         radioButtons(ns("chart_type"), "Chart Type",
           choices = c("Stacked Area" = "area", "Stacked Bar" = "bar", "Line (Total)" = "line"),
           selected = "area", inline = TRUE)
