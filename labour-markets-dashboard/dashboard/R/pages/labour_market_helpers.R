@@ -101,15 +101,7 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
       tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
       tags$p(class = "govuk-body", paste("Total", tolower(title), "broken down by age group over time")),
 
-      # Age group selection section
-      tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
-        tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
-          tags$span(class = "govuk-fieldset__heading", "Select Age Groups")
-        ),
-        checkboxGroupInput(ns("stacked_age_select"), NULL, AGE_STACK, AGE_STACK, inline = TRUE)
-      ),
-
-      # Time period section
+      # Time period section (first)
       tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
         tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
           tags$span(class = "govuk-fieldset__heading", "Time Period")
@@ -120,25 +112,32 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
                     width = "100%", timeFormat = "%Y")
       ),
 
-      # Chart type section
+      # Age group selection section
       tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
         tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
-          tags$span(class = "govuk-fieldset__heading", "Chart Type")
+          tags$span(class = "govuk-fieldset__heading", "Select Age Groups")
         ),
-        radioButtons(ns("chart_type"), NULL,
-          choices = c("Stacked Area" = "area", "Stacked Bar" = "bar", "Line (Total)" = "line"),
-          selected = "area", inline = TRUE)
+        checkboxGroupInput(ns("stacked_age_select"), NULL, AGE_STACK, AGE_STACK, inline = TRUE)
       ),
 
-      # Tabs (enhancement)
+      # Tabs with chart type toggle attached
       tags$div(class = "ukhsa-tabs",
-        tags$div(class = "ukhsa-tabs__list", role = "tablist",
-          tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "true",
-                 tabindex = "0", `data-target` = ns("chart"), "Chart"),
-          tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "false",
-                 tabindex = "-1", `data-target` = ns("table"), "Tabular data"),
-          tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "false",
-                 tabindex = "-1", `data-target` = ns("download"), "Download")
+        # Chart type toggle (attached to chart)
+        tags$div(style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
+          tags$div(class = "ukhsa-tabs__list", role = "tablist", style = "margin-bottom: 0;",
+            tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "true",
+                   tabindex = "0", `data-target` = ns("chart"), "Chart"),
+            tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "false",
+                   tabindex = "-1", `data-target` = ns("table"), "Tabular data"),
+            tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "false",
+                   tabindex = "-1", `data-target` = ns("download"), "Download")
+          ),
+          tags$div(style = "display: flex; align-items: center; gap: 8px;",
+            tags$span(class = "govuk-body-s", style = "margin: 0; color: #505a5f;", "View:"),
+            radioButtons(ns("chart_type"), NULL,
+              choices = c("Area" = "area", "Bar" = "bar", "Line" = "line"),
+              selected = "area", inline = TRUE)
+          )
         ),
 
         tags$div(id = ns("chart"), class = "ukhsa-tabs__panel", role = "tabpanel",
