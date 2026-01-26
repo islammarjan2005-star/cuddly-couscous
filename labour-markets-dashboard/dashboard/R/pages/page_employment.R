@@ -167,6 +167,26 @@ employment_ui <- function(id) {
 # Provides: Stacked Area, Stacked Bar, Line Graph (Total), Table, Download
 # -------------------------------------------------------------------------
 
+#' Employment by Age Card Module UI
+#'
+#' Creates a self-contained card for displaying employment data by age group.
+#' Includes chart type toggle (stacked area, stacked bar, line), tabular data,
+#' and download options. This module encapsulates all age-related visualization.
+#'
+#' @param id Character. The module namespace ID.
+#' @param title Character. Card title displayed as a heading.
+#' @param help_text Character. Optional hint text displayed below the title.
+#'
+#' @return A Shiny tagList containing the styled card with chart toggle and tabs.
+#' @export
+#'
+#' @examples
+#' # In UI definition
+#' mod_employment_age_card_ui(
+#'   id = ns("age_card"),
+#'   title = "Employment by Age Group",
+#'   help_text = "View employment data broken down by age group."
+#' )
 mod_employment_age_card_ui <- function(id, title, help_text = NULL) {
   ns <- shiny::NS(id)
 
@@ -235,6 +255,28 @@ mod_employment_age_card_ui <- function(id, title, help_text = NULL) {
 }
 
 
+#' Employment by Age Card Module Server
+#'
+#' Server logic for the Employment by Age card. Renders interactive charts
+#' (stacked area, stacked bar, or line graph), a data table, and download
+#' handlers for CSV/Excel export.
+#'
+#' @param id Character. The module namespace ID (must match the UI).
+#' @param age_data Reactive. A reactive expression returning a data frame with
+#'   columns: age_group, economic_activity, time_period, value.
+#' @param chart_type Reactive. Optional reactive expression returning the chart
+#'   type ("area", "bar", or "line"). If NULL, uses the module's internal radio buttons.
+#'
+#' @return NULL (called for side effects - renders chart, table, and downloads).
+#' @export
+#'
+#' @examples
+#' # In server definition
+#' mod_employment_age_card_server(
+#'   id = "age_card",
+#'   age_data = reactive({ filtered_employment_data }),
+#'   chart_type = reactive({ input$chart_type })
+#' )
 mod_employment_age_card_server <- function(id, age_data, chart_type) {
   shiny::moduleServer(id, function(input, output, session) {
 
