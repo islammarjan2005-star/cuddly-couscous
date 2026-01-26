@@ -101,22 +101,31 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
       tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
       tags$p(class = "govuk-body", paste("Total", tolower(title), "broken down by age group over time")),
 
-      # Age group checkboxes (from viq.R)
-      tags$div(class = "govuk-form-group",
-        checkboxGroupInput(ns("stacked_age_select"), "Select Age Groups", AGE_STACK, AGE_STACK, inline = TRUE)
+      # Age group selection section
+      tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
+        tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
+          tags$span(class = "govuk-fieldset__heading", "Select Age Groups")
+        ),
+        checkboxGroupInput(ns("stacked_age_select"), NULL, AGE_STACK, AGE_STACK, inline = TRUE)
       ),
 
-      # Time period slider (enhancement)
-      tags$div(class = "govuk-form-group",
-        sliderInput(ns("date_range"), "Time Period",
+      # Time period section
+      tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
+        tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
+          tags$span(class = "govuk-fieldset__heading", "Time Period")
+        ),
+        sliderInput(ns("date_range"), NULL,
                     min = as.Date("1992-01-01"), max = Sys.Date(),
                     value = c(as.Date("2010-01-01"), Sys.Date()),
                     width = "100%", timeFormat = "%Y")
       ),
 
-      # Chart type toggle (enhancement)
-      tags$div(class = "govuk-form-group",
-        radioButtons(ns("chart_type"), "Chart Type",
+      # Chart type section
+      tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
+        tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
+          tags$span(class = "govuk-fieldset__heading", "Chart Type")
+        ),
+        radioButtons(ns("chart_type"), NULL,
           choices = c("Stacked Area" = "area", "Stacked Bar" = "bar", "Line (Total)" = "line"),
           selected = "area", inline = TRUE)
       ),
