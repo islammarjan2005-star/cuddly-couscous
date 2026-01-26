@@ -97,32 +97,32 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
   tagList(
     ukhsa_card_tabs_assets(),
 
+    tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
+    tags$p(class = "govuk-body", paste("Total", tolower(title), "broken down by age group over time")),
+
+    # Time period section (above card)
+    tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
+      tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
+        tags$span(class = "govuk-fieldset__heading", "Time Period")
+      ),
+      sliderInput(ns("date_range"), NULL,
+                  min = as.Date("1992-01-01"), max = Sys.Date(),
+                  value = c(as.Date("2010-01-01"), Sys.Date()),
+                  width = "100%", timeFormat = "%Y")
+    ),
+
+    # Age group selection section (above card)
+    tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
+      tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
+        tags$span(class = "govuk-fieldset__heading", "Select Age Groups")
+      ),
+      checkboxGroupInput(ns("stacked_age_select"), NULL, AGE_STACK, AGE_STACK, inline = TRUE)
+    ),
+
+    # Card with chart
     tags$div(class = "lm-card-ukhsa",
-      tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
-      tags$p(class = "govuk-body", paste("Total", tolower(title), "broken down by age group over time")),
-
-      # Time period section (first)
-      tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
-        tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
-          tags$span(class = "govuk-fieldset__heading", "Time Period")
-        ),
-        sliderInput(ns("date_range"), NULL,
-                    min = as.Date("1992-01-01"), max = Sys.Date(),
-                    value = c(as.Date("2010-01-01"), Sys.Date()),
-                    width = "100%", timeFormat = "%Y")
-      ),
-
-      # Age group selection section
-      tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
-        tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
-          tags$span(class = "govuk-fieldset__heading", "Select Age Groups")
-        ),
-        checkboxGroupInput(ns("stacked_age_select"), NULL, AGE_STACK, AGE_STACK, inline = TRUE)
-      ),
-
       # Tabs with chart type toggle attached
       tags$div(class = "ukhsa-tabs",
-        # Chart type toggle (attached to chart)
         tags$div(style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
           tags$div(class = "ukhsa-tabs__list", role = "tablist", style = "margin-bottom: 0;",
             tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "true",
@@ -132,8 +132,8 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
             tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "false",
                    tabindex = "-1", `data-target` = ns("download"), "Download")
           ),
-          tags$div(style = "display: flex; align-items: center; gap: 8px;",
-            tags$span(class = "govuk-body-s", style = "margin: 0; color: #505a5f;", "View:"),
+          tags$div(class = "govuk-body-s", style = "margin: 0; display: flex; align-items: center; gap: 10px;",
+            tags$span(style = "font-weight: 600;", "View:"),
             radioButtons(ns("chart_type"), NULL,
               choices = c("Area" = "area", "Bar" = "bar", "Line" = "line"),
               selected = "area", inline = TRUE)
