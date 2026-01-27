@@ -1,0 +1,35 @@
+# Declare all data in this repository below. For more information visit: 
+# https://data-services-help.trade.gov.uk/data-in-gitlab
+data:
+
+  - path: dashboard/Files/DBT_white.png
+    type: not-data
+  - path: dashboard/www/DBT_White_crest_Only.png
+    type: not-data
+  - path: dashboard/www/DBT_white.png
+    type: not-data
+  - path: dashboard/www/DBT_white_crest.png
+    type: not-data
+  - path: dashboard/www/DBT_white_cropped.png
+    type: not-data
+  - path: dashboard/www/assets/images/govuk-icon-180.png
+    type: not-data
+  - path: dashboard/www/assets/images/govuk-icon-192.png
+    type: not-data
+  - path: dashboard/www/assets/images/govuk-icon-512.png
+    type: not-data
+  - path: dashboard/www/assets/images/govuk-opengraph-image.png
+    type: not-data
+  - path: dashboard/www/assets/manifest.json
+    type: not-data
+  - path: dashboard/www/assets/rebrand/images/govuk-icon-180.png
+    type: not-data
+  - path: dashboard/www/assets/rebrand/images/govuk-icon-192.png
+    type: not-data
+  - path: dashboard/www/assets/rebrand/images/govuk-icon-512.png
+    type: not-data
+  - path: dashboard/www/assets/rebrand/images/govuk-opengraph-image.png
+    type: not-data
+  - path: dashboard/www/assets/rebrand/manifest.json
+    type: not-data
+
