@@ -86,19 +86,20 @@ render_stacked_age <- function(df, selected_ages, y_label) {
 #'
 #' @param id Character. The module namespace ID.
 #' @param title Character. Name of the metric (e.g., "Employment").
+#' @param subtitle Character. Optional custom description. Defaults to auto-generated.
 #' @param level_colour Character. Hex colour for level charts.
 #' @param rate_colour Character. Hex colour for rate charts.
 #'
 #' @return A Shiny tagList containing the card with chart toggle and tabs.
 #' @export
-labour_metric_ui <- function(id, title, level_colour, rate_colour) {
+labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colour) {
   ns <- NS(id)
 
   tagList(
     ukhsa_card_tabs_assets(),
 
     tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
-    tags$p(class = "govuk-body", paste("Total", tolower(title), "broken down by age group over time")),
+    tags$p(class = "govuk-body", subtitle %||% paste("Total", tolower(title), "broken down by age group over time")),
 
     # Time period section (above card)
     tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
@@ -169,11 +170,16 @@ labour_metric_ui <- function(id, title, level_colour, rate_colour) {
 #' @param stacked_codes Data frame. Age groups for stacked charts.
 #' @param level_colour Character. Hex colour for level charts.
 #' @param rate_colour Character. Hex colour for rate charts.
+#' @param y_label Character. Optional custom y-axis label. Defaults to "Title (000s)".
+#' @param x_label Character. Optional custom x-axis label. Defaults to "".
+#' @param y_min Numeric. Optional minimum y-axis value. NULL for auto.
+#' @param y_max Numeric. Optional maximum y-axis value. NULL for auto.
 #' @param invert Logical. If TRUE, decreases are good.
 #'
 #' @return NULL (called for side effects).
 #' @export
-labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colour, rate_colour, invert = FALSE) {
+labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colour, rate_colour,
+                                  y_label = NULL, x_label = "", y_min = NULL, y_max = NULL, invert = FALSE) {
   moduleServer(id, function(input, output, session) {
 
     # Database connection (exact pattern from viq.R)
@@ -203,40 +209,63 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
     # Chart type selection
     chart_type <- reactive({ input$chart_type %||% "area" })
 
+    # Axis configuration (flexible)
+    y_axis_label <- y_label %||% paste(title, "(000s)")
+    y_axis_config <- list(title = y_axis_label, fixedrange = TRUE)
+    if (!is.null(y_min)) y_axis_config$range <- c(y_min, y_max %||% NA)
+    if (!is.null(y_max) && is.null(y_min)) y_axis_config$range <- c(NA, y_max)
+
+    x_axis_config <- list(title = x_label, fixedrange = TRUE)
+
     # Render chart (enhanced with multiple types)
     output$stacked_age <- renderPlotly({
       d <- by_age()
       req(nrow(d) > 0)
 
       if (chart_type() == "area") {
-        # Original stacked area from viq.R
-        render_stacked_age(d, input$stacked_age_select, paste(title, "(000s)"))
+        # Original stacked area from viq.R (with flexible axis)
+        p <- plot_ly()
+        for (age in AGE_STACK[AGE_STACK %in% input$stacked_age_select]) {
+          age_d <- d[d$age_group == age, ]
+          age_d <- age_d[order(age_d$date), ]
+          p <- p %>% add_trace(data = age_d, x = ~date, y = ~value, type = 'scatter', mode = 'lines',
+                               fill = 'tonexty', fillcolor = AGE_COLOURS[age], name = age, stackgroup = 'one',
+                               line = list(color = AGE_COLOURS[age], width = 0.5),
+                               hovertemplate = paste0(age, ": %{y:.0f}k<br>%{x}<extra></extra>"))
+        }
+        p %>% layout(xaxis = x_axis_config, yaxis = y_axis_config,
+                     hovermode = "x unified",
+                     legend = list(orientation = "h", y = -0.15, x = 0.5, xanchor = "center")) %>%
+          config(displayModeBar = FALSE)
 
       } else if (chart_type() == "bar") {
-        # Stacked bar (enhancement)
+        # Stacked bar (enhancement) - flexible axis
         p <- plot_ly()
         for (age in AGE_STACK[AGE_STACK %in% input$stacked_age_select]) {
           age_d <- d[d$age_group == age, ]
           p <- p %>% add_trace(data = age_d, x = ~time_period, y = ~value,
                                type = 'bar', name = age, marker = list(color = AGE_COLOURS[age]))
         }
-        p %>% layout(barmode = 'stack', xaxis = list(title = "", tickangle = 45),
-                     yaxis = list(title = paste(title, "(000s)")),
+        bar_x_config <- x_axis_config
+        bar_x_config$tickangle <- 45
+        p %>% layout(barmode = 'stack', xaxis = bar_x_config, yaxis = y_axis_config,
                      legend = list(orientation = "h", y = -0.2)) %>%
           config(displayModeBar = FALSE)
 
       } else if (chart_type() == "line") {
-        # Line total (enhancement)
+        # Line total (enhancement) - flexible axis
         d_total <- d %>%
           dplyr::group_by(time_period, date) %>%
           dplyr::summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop") %>%
           dplyr::arrange(date)
 
+        line_y_config <- y_axis_config
+        line_y_config$title <- y_label %||% paste("Total", title, "(000s)")
+
         plot_ly(d_total, x = ~date, y = ~total_value, type = 'scatter', mode = 'lines+markers',
                 line = list(color = level_colour, width = 2),
                 marker = list(color = level_colour, size = 6)) %>%
-          layout(xaxis = list(title = ""),
-                 yaxis = list(title = paste("Total", title, "(000s)")),
+          layout(xaxis = x_axis_config, yaxis = line_y_config,
                  hovermode = "x unified") %>%
           config(displayModeBar = FALSE)
       }
