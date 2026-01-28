@@ -383,8 +383,6 @@ mod_stats_card_row_server <- function(id, data, card_configs) {
 #'   (e.g., \code{plotlyOutput(ns("chart"))}).
 #' @param controls List or tag. Optional control elements (sliders, dropdowns)
 #'   displayed above the tabs.
-#' @param table_content Shiny UI element. Optional content for the table tab.
-#' @param download_content Shiny UI element. Optional content for the download tab.
 #'
 #' @return A Shiny tagList containing the styled card with tabs.
 #' @export
@@ -427,8 +425,6 @@ mod_govuk_data_vis_card_ui <- function(
       htmltools::tagList(controls)
     )
   }
-
-  # default placeholders
 
   table_block <- table_content %||% htmltools::tags$p(class = "govuk-hint", "Table placeholder")
   download_block <- download_content %||% htmltools::tags$p(class = "govuk-hint", "Download placeholder")
