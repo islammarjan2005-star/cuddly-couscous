@@ -1,13 +1,4 @@
-# R/pages/labour_market_helpers.R
-# =============================================================================
-# Labour Market Helpers - evolved from original viq.R pattern
-# =============================================================================
-#
-# Shared constants, dataset code mappings, and reusable UI/Server functions
-# for labour market visualizations (Employment, Unemployment, etc.)
-#
-# Enhanced with: Roxygen docs, chart type toggle, tabs, table, downloads
-# =============================================================================
+# labour_market_helpers.R
 
 library(ggplot2)
 library(scales)
@@ -15,16 +6,13 @@ library(plotly)
 library(DBI)
 library(RPostgres)
 
-# Source required dependencies (if not already loaded by app.R)
+# load dependencies
 if (!exists("ukhsa_card_tabs_assets")) {
   source("R/components/govuk_helpers.R")
 }
 
 
-# -----------------------------------------------------------------------------
-# Constants (matching database values exactly)
-# -----------------------------------------------------------------------------
-
+# constants
 #' @export
 AGE_CHOICES <- c("Aged 16 and over", "Aged 16 to 64", "Aged 16 to 17", "Aged 18 to 24",
                  "Aged 25 to 34", "Aged 35 to 49", "Aged 50 to 64", "Aged 65 and over")
@@ -37,9 +25,7 @@ AGE_COLOURS <- c("16-17" = "#CF102D", "18-24" = "#00285F", "25-34" = "#004D44",
                  "35-49" = "#4814A0", "50-64" = "#0063BE", "65+" = "#E24912")
 
 
-# -----------------------------------------------------------------------------
-# Helpers (from viq.R)
-# -----------------------------------------------------------------------------
+# data helpers
 
 #' Parse ONS time periods to Date objects
 #' @param periods Character vector of ONS period strings (e.g., "Jan-Mar 2020")
@@ -68,9 +54,7 @@ query_data <- function(conn, code, divide = 1) {
 }
 
 
-# -----------------------------------------------------------------------------
-# Chart Rendering Helpers (extracted for clarity)
-# -----------------------------------------------------------------------------
+# chart helpers
 
 #' Render stacked area chart
 #' @keywords internal
@@ -132,9 +116,7 @@ render_line_chart <- function(d, x_config, y_config, line_colour) {
 }
 
 
-# -----------------------------------------------------------------------------
-# Labour Metric UI (evolved from viq.R with enhancements)
-# -----------------------------------------------------------------------------
+# module ui
 
 #' Labour Metric Card Module UI
 #'
@@ -155,7 +137,7 @@ labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colo
     tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
     tags$p(class = "govuk-body", subtitle %||% paste("Total", tolower(title), "broken down by age group over time")),
 
-    # Time period section (above card)
+    # time period filter
     tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
       tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
         tags$span(class = "govuk-fieldset__heading", "Time Period")
@@ -166,7 +148,7 @@ labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colo
                   width = "100%", timeFormat = "%Y")
     ),
 
-    # Age group selection section (above card)
+    # age group filter
     tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
       tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
         tags$span(class = "govuk-fieldset__heading", "Select Age Groups")
@@ -174,9 +156,8 @@ labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colo
       checkboxGroupInput(ns("stacked_age_select"), NULL, AGE_STACK, AGE_STACK, inline = TRUE)
     ),
 
-    # Card with chart
+    # chart card
     tags$div(class = "lm-card-ukhsa",
-      # Tabs with chart type toggle attached
       tags$div(class = "ukhsa-tabs",
         tags$div(style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
           tags$div(class = "ukhsa-tabs__list", role = "tablist", style = "margin-bottom: 0;",
@@ -195,6 +176,7 @@ labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colo
           )
         ),
 
+        # tab panels
         tags$div(id = ns("chart"), class = "ukhsa-tabs__panel", role = "tabpanel",
           plotlyOutput(ns("stacked_age"), height = "450px")
         ),
@@ -212,9 +194,7 @@ labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colo
 }
 
 
-# -----------------------------------------------------------------------------
-# Labour Metric Server (evolved from viq.R with enhancements)
-# -----------------------------------------------------------------------------
+# module server
 
 #' Labour Metric Card Module Server
 #'
@@ -236,11 +216,11 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
                                   y_label = NULL, x_label = "", y_min = NULL, y_max = NULL, invert = FALSE) {
   moduleServer(id, function(input, output, session) {
 
-    # Database connection (exact pattern from viq.R)
+    # db connection
     conn <- dbConnect(RPostgres::Postgres())
     onStop(function() dbDisconnect(conn))
 
-    # Fetch all stacked age data (from viq.R)
+    # fetch data
     all_age_data <- reactive({
       req(input$stacked_age_select)
       sel <- stacked_codes[stacked_codes$age_group %in% input$stacked_age_select, ]
@@ -253,25 +233,24 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
       df[order(df$date), ]
     })
 
-    # Filter by time period slider (enhancement)
+    # filter by date
     by_age <- reactive({
       d <- all_age_data()
       req(nrow(d) > 0, input$date_range)
       d[d$date >= input$date_range[1] & d$date <= input$date_range[2], ]
     })
 
-    # Chart type selection
+    # chart type
     chart_type <- reactive({ input$chart_type %||% "area" })
 
-    # Axis configuration (flexible)
+    # axis config
     y_axis_label <- y_label %||% paste(title, "(000s)")
     y_axis_config <- list(title = y_axis_label, fixedrange = TRUE)
     if (!is.null(y_min)) y_axis_config$range <- c(y_min, y_max %||% NA)
     if (!is.null(y_max) && is.null(y_min)) y_axis_config$range <- c(NA, y_max)
-
     x_axis_config <- list(title = x_label, fixedrange = TRUE)
 
-    # Render chart (uses extracted helper functions for clarity)
+    # render chart
     output$stacked_age <- renderPlotly({
       d <- by_age()
       req(nrow(d) > 0)
@@ -287,7 +266,7 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
       )
     })
 
-    # Data table (enhancement)
+    # data table
     output$metric_table <- DT::renderDataTable({
       d <- by_age()
       req(nrow(d) > 0)
@@ -296,12 +275,13 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
         rownames = FALSE, colnames = c("Age Group", "Time Period", "Value (000s)"))
     })
 
-    # Downloads (enhancement)
+    # csv download
     output$download_csv <- downloadHandler(
       filename = function() paste0(tolower(gsub(" ", "_", title)), "_by_age_", Sys.Date(), ".csv"),
       content = function(file) write.csv(by_age(), file, row.names = FALSE)
     )
 
+    # excel download
     output$download_xlsx <- downloadHandler(
       filename = function() paste0(tolower(gsub(" ", "_", title)), "_by_age_", Sys.Date(), ".xlsx"),
       content = function(file) {
@@ -310,7 +290,7 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
       }
     )
 
-    # Initialize tabs
+    # init tabs
     session$onFlushed(function() {
       session$sendCustomMessage("ukhsa-tabs-init", list())
     }, once = FALSE)
