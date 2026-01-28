@@ -132,11 +132,6 @@ labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colo
   ns <- NS(id)
 
   tagList(
-    ukhsa_card_tabs_assets(),
-
-    tags$h2(class = "govuk-heading-m", paste(title, "by Age Group")),
-    tags$p(class = "govuk-body", subtitle %||% paste("Total", tolower(title), "broken down by age group over time")),
-
     # time period filter
     tags$fieldset(class = "govuk-fieldset", style = "border: 1px solid #b1b4b6; padding: 15px; margin-bottom: 20px;",
       tags$legend(class = "govuk-fieldset__legend govuk-fieldset__legend--s",
@@ -156,38 +151,22 @@ labour_metric_ui <- function(id, title, subtitle = NULL, level_colour, rate_colo
       checkboxGroupInput(ns("stacked_age_select"), NULL, AGE_STACK, AGE_STACK, inline = TRUE)
     ),
 
-    # chart card
-    tags$div(class = "lm-card-ukhsa",
-      tags$div(class = "ukhsa-tabs",
-        tags$div(style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
-          tags$div(class = "ukhsa-tabs__list", role = "tablist", style = "margin-bottom: 0;",
-            tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "true",
-                   tabindex = "0", `data-target` = ns("chart"), "Chart"),
-            tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "false",
-                   tabindex = "-1", `data-target` = ns("table"), "Tabular data"),
-            tags$a(class = "ukhsa-tabs__tab", role = "tab", `aria-selected` = "false",
-                   tabindex = "-1", `data-target` = ns("download"), "Download")
-          ),
-          tags$div(class = "govuk-body-s", style = "margin: 0; display: flex; align-items: center; gap: 10px;",
-            tags$span(style = "font-weight: 600;", "View:"),
-            radioButtons(ns("chart_type"), NULL,
-              choices = c("Area" = "area", "Bar" = "bar", "Line" = "line"),
-              selected = "area", inline = TRUE)
-          )
-        ),
-
-        # tab panels
-        tags$div(id = ns("chart"), class = "ukhsa-tabs__panel", role = "tabpanel",
-          plotlyOutput(ns("stacked_age"), height = "450px")
-        ),
-        tags$div(id = ns("table"), class = "ukhsa-tabs__panel is-hidden", role = "tabpanel",
-          DT::dataTableOutput(ns("metric_table"))
-        ),
-        tags$div(id = ns("download"), class = "ukhsa-tabs__panel is-hidden", role = "tabpanel",
-          tags$p(class = "govuk-body", "Download the data in various formats:"),
-          downloadButton(ns("download_csv"), "Download CSV", class = "govuk-button govuk-button--secondary"),
-          downloadButton(ns("download_xlsx"), "Download Excel", class = "govuk-button govuk-button--secondary")
-        )
+    # chart card (using boss's wrapper)
+    mod_govuk_data_vis_card_ui(
+      id = ns("card"),
+      title = paste(title, "by Age Group"),
+      help_text = subtitle %||% paste("Total", tolower(title), "broken down by age group over time"),
+      visual_content = plotlyOutput(ns("stacked_age"), height = "450px"),
+      controls = list(
+        radioButtons(ns("chart_type"), "View:",
+          choices = c("Area" = "area", "Bar" = "bar", "Line" = "line"),
+          selected = "area", inline = TRUE)
+      ),
+      table_content = DT::dataTableOutput(ns("metric_table")),
+      download_content = tagList(
+        tags$p(class = "govuk-body", "Download the data in various formats:"),
+        downloadButton(ns("download_csv"), "Download CSV", class = "govuk-button govuk-button--secondary"),
+        downloadButton(ns("download_xlsx"), "Download Excel", class = "govuk-button govuk-button--secondary")
       )
     )
   )
@@ -290,9 +269,7 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
       }
     )
 
-    # init tabs
-    session$onFlushed(function() {
-      session$sendCustomMessage("ukhsa-tabs-init", list())
-    }, once = FALSE)
+    # init tabs (using boss's wrapper)
+    mod_govuk_data_vis_card_server("card")
   })
 }
