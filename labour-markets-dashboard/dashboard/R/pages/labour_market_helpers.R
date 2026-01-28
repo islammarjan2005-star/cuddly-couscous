@@ -41,6 +41,9 @@ AGE_COLOURS <- c("16-17" = "#CF102D", "18-24" = "#00285F", "25-34" = "#004D44",
 # Helpers (from viq.R)
 # -----------------------------------------------------------------------------
 
+#' Parse ONS time periods to Date objects
+#' @param periods Character vector of ONS period strings (e.g., "Jan-Mar 2020")
+#' @return Vector of Date objects
 #' @export
 parse_ons_periods <- function(periods) {
   as.Date(sapply(periods, function(p) {
@@ -49,6 +52,11 @@ parse_ons_periods <- function(periods) {
   }), origin = "1970-01-01")
 }
 
+#' Query single dataset code from database
+#' @param conn Database connection
+#' @param code ONS dataset identifier code
+#' @param divide Divisor for values (default 1)
+#' @return Data frame with time_period, value, date columns
 #' @export
 query_data <- function(conn, code, divide = 1) {
   q <- sprintf('SELECT time_period, value FROM "ons"."labour_market__age_group"
@@ -59,21 +67,67 @@ query_data <- function(conn, code, divide = 1) {
   df[order(df$date), ]
 }
 
-#' @export
-render_stacked_age <- function(df, selected_ages, y_label) {
+
+# -----------------------------------------------------------------------------
+# Chart Rendering Helpers (extracted for clarity)
+# -----------------------------------------------------------------------------
+
+#' Render stacked area chart
+#' @keywords internal
+render_area_chart <- function(d, selected_ages, x_config, y_config) {
   p <- plot_ly()
   for (age in AGE_STACK[AGE_STACK %in% selected_ages]) {
-    d <- df[df$age_group == age, ]
-    d <- d[order(d$date), ]
-    p <- p %>% add_trace(data = d, x = ~date, y = ~value, type = 'scatter', mode = 'lines',
-                         fill = 'tonexty', fillcolor = AGE_COLOURS[age], name = age, stackgroup = 'one',
-                         line = list(color = AGE_COLOURS[age], width = 0.5),
-                         hovertemplate = paste0(age, ": %{y:.0f}k<br>%{x}<extra></extra>"))
+    age_d <- d[d$age_group == age, ]
+    age_d <- age_d[order(age_d$date), ]
+    p <- p %>% add_trace(
+      data = age_d, x = ~date, y = ~value,
+      type = 'scatter', mode = 'lines',
+      fill = 'tonexty', fillcolor = AGE_COLOURS[age],
+      name = age, stackgroup = 'one',
+      line = list(color = AGE_COLOURS[age], width = 0.5),
+      hovertemplate = paste0(age, ": %{y:.0f}k<br>%{x}<extra></extra>")
+    )
   }
-  p %>% layout(xaxis = list(title = "", fixedrange = TRUE),
-               yaxis = list(title = y_label, fixedrange = TRUE),
-               hovermode = "x unified",
-               legend = list(orientation = "h", y = -0.15, x = 0.5, xanchor = "center")) %>%
+  p %>%
+    layout(xaxis = x_config, yaxis = y_config,
+           hovermode = "x unified",
+           legend = list(orientation = "h", y = -0.15, x = 0.5, xanchor = "center")) %>%
+    config(displayModeBar = FALSE)
+}
+
+#' Render stacked bar chart
+#' @keywords internal
+render_bar_chart <- function(d, selected_ages, x_config, y_config) {
+  p <- plot_ly()
+  for (age in AGE_STACK[AGE_STACK %in% selected_ages]) {
+    age_d <- d[d$age_group == age, ]
+    p <- p %>% add_trace(
+      data = age_d, x = ~time_period, y = ~value,
+      type = 'bar', name = age,
+      marker = list(color = AGE_COLOURS[age])
+    )
+  }
+  bar_x_config <- x_config
+  bar_x_config$tickangle <- 45
+  p %>%
+    layout(barmode = 'stack', xaxis = bar_x_config, yaxis = y_config,
+           legend = list(orientation = "h", y = -0.2)) %>%
+    config(displayModeBar = FALSE)
+}
+
+#' Render line chart (total)
+#' @keywords internal
+render_line_chart <- function(d, x_config, y_config, line_colour) {
+  d_total <- d %>%
+    dplyr::group_by(time_period, date) %>%
+    dplyr::summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::arrange(date)
+
+  plot_ly(d_total, x = ~date, y = ~total_value,
+          type = 'scatter', mode = 'lines+markers',
+          line = list(color = line_colour, width = 2),
+          marker = list(color = line_colour, size = 6)) %>%
+    layout(xaxis = x_config, yaxis = y_config, hovermode = "x unified") %>%
     config(displayModeBar = FALSE)
 }
 
@@ -217,58 +271,20 @@ labour_metric_server <- function(id, title, age_codes, stacked_codes, level_colo
 
     x_axis_config <- list(title = x_label, fixedrange = TRUE)
 
-    # Render chart (enhanced with multiple types)
+    # Render chart (uses extracted helper functions for clarity)
     output$stacked_age <- renderPlotly({
       d <- by_age()
       req(nrow(d) > 0)
 
-      if (chart_type() == "area") {
-        # Original stacked area from viq.R (with flexible axis)
-        p <- plot_ly()
-        for (age in AGE_STACK[AGE_STACK %in% input$stacked_age_select]) {
-          age_d <- d[d$age_group == age, ]
-          age_d <- age_d[order(age_d$date), ]
-          p <- p %>% add_trace(data = age_d, x = ~date, y = ~value, type = 'scatter', mode = 'lines',
-                               fill = 'tonexty', fillcolor = AGE_COLOURS[age], name = age, stackgroup = 'one',
-                               line = list(color = AGE_COLOURS[age], width = 0.5),
-                               hovertemplate = paste0(age, ": %{y:.0f}k<br>%{x}<extra></extra>"))
+      switch(chart_type(),
+        "area" = render_area_chart(d, input$stacked_age_select, x_axis_config, y_axis_config),
+        "bar"  = render_bar_chart(d, input$stacked_age_select, x_axis_config, y_axis_config),
+        "line" = {
+          line_y_config <- y_axis_config
+          line_y_config$title <- y_label %||% paste("Total", title, "(000s)")
+          render_line_chart(d, x_axis_config, line_y_config, level_colour)
         }
-        p %>% layout(xaxis = x_axis_config, yaxis = y_axis_config,
-                     hovermode = "x unified",
-                     legend = list(orientation = "h", y = -0.15, x = 0.5, xanchor = "center")) %>%
-          config(displayModeBar = FALSE)
-
-      } else if (chart_type() == "bar") {
-        # Stacked bar (enhancement) - flexible axis
-        p <- plot_ly()
-        for (age in AGE_STACK[AGE_STACK %in% input$stacked_age_select]) {
-          age_d <- d[d$age_group == age, ]
-          p <- p %>% add_trace(data = age_d, x = ~time_period, y = ~value,
-                               type = 'bar', name = age, marker = list(color = AGE_COLOURS[age]))
-        }
-        bar_x_config <- x_axis_config
-        bar_x_config$tickangle <- 45
-        p %>% layout(barmode = 'stack', xaxis = bar_x_config, yaxis = y_axis_config,
-                     legend = list(orientation = "h", y = -0.2)) %>%
-          config(displayModeBar = FALSE)
-
-      } else if (chart_type() == "line") {
-        # Line total (enhancement) - flexible axis
-        d_total <- d %>%
-          dplyr::group_by(time_period, date) %>%
-          dplyr::summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop") %>%
-          dplyr::arrange(date)
-
-        line_y_config <- y_axis_config
-        line_y_config$title <- y_label %||% paste("Total", title, "(000s)")
-
-        plot_ly(d_total, x = ~date, y = ~total_value, type = 'scatter', mode = 'lines+markers',
-                line = list(color = level_colour, width = 2),
-                marker = list(color = level_colour, size = 6)) %>%
-          layout(xaxis = x_axis_config, yaxis = line_y_config,
-                 hovermode = "x unified") %>%
-          config(displayModeBar = FALSE)
-      }
+      )
     })
 
     # Data table (enhancement)
